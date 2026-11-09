@@ -31,13 +31,13 @@ public abstract class Robot {
 
     public void moveTo(Position newPosition) {
 
-        if (battery <= 0) {
+        if (battery < getMoveCost()) {
             throw new IllegalStateException("Robot " + id + " has no battery left to move.");
         }
 
         // add battery threshold check later to see if it needs to move to charger
         this.position = newPosition;
-        this.battery -= Math.max(0, this.battery - getMoveCost());
+        this.battery = Math.max(0, this.battery - getMoveCost());
     }
 
     public boolean batteryLow() {
