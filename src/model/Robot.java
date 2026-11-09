@@ -35,7 +35,7 @@ public abstract class Robot {
     }
 
     public boolean batteryLow() {
-        // Depends on pathing, unsure how to implement
+       return battery<20;
     }
 
 
