@@ -2,7 +2,7 @@ package model;
 
 import java.util.List;
 
-import javax.swing.text.Position;
+
 
 import java.util.ArrayList;
 
@@ -17,8 +17,9 @@ public class Warehouse {
     private final List<Position> pickupPoints = new ArrayList<>();
     private final List<Position> chargers = new ArrayList<>();
 
+    
     public Warehouse() {
-
+        this.grid = new char[rows][cols];
         for (int x = 0; x < rows; x++) {
             for (int y = 0; y < cols; y++) {
                 grid[x][y] = '_';
@@ -65,8 +66,7 @@ public class Warehouse {
     public List<Position> getChargers() { return chargers; }
 
     // DEPENDS ON HOW POSITION IS IMPLEMENTED
-    public void addDropoff(Position pos) { setCell(pos, 'D'); }
-    public void addPickup(Position pos) { setCell(pos, 'P'); }
-    public void addCharger(Position pos) { setCell(pos, 'C'); }
-
+       public void addDropoff(Position pos) { setCell(pos.getRow(), pos.getCol(), 'D'); dropoffPoints.add(pos); }
+    public void addPickup(Position pos) { setCell(pos.getRow(), pos.getCol(), 'P'); pickupPoints.add(pos); }
+    public void addCharger(Position pos) { setCell(pos.getRow(), pos.getCol(), 'C'); chargers.add(pos); }
 }
