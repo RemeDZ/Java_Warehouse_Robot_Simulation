@@ -66,7 +66,7 @@ public class Warehouse {
     public List<Position> getChargers() { return chargers; }
 
     // DEPENDS ON HOW POSITION IS IMPLEMENTED
-       public void addDropoff(Position pos) { setCell(pos.getRow(), pos.getCol(), 'D'); dropoffPoints.add(pos); }
+    public void addDropoff(Position pos) { setCell(pos.getRow(), pos.getCol(), 'D'); dropoffPoints.add(pos); }
     public void addPickup(Position pos) { setCell(pos.getRow(), pos.getCol(), 'P'); pickupPoints.add(pos); }
     public void addCharger(Position pos) { setCell(pos.getRow(), pos.getCol(), 'C'); chargers.add(pos); }
 }
