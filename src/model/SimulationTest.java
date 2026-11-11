@@ -48,5 +48,41 @@ public class SimulationTest {
 
          // Display the complete simulation status
         simulation.displayStatus();
+
+
+        // Test duplicate robot
+        System.out.println("\n===== VALIDATION TESTS =====");
+
+        try {
+            simulation.addRobot(robot);
+            System.out.println("FAIL: Duplicate robot accepted.");
+        }
+        catch (IllegalArgumentException e) {
+            System.out.println("PASS: " + e.getMessage());
+        }
+
+        // Test duplicate task
+        Task duplicateTask =
+                new Task("T1", 1, 2, 3, 2);
+
+        try {
+            simulation.addTask(duplicateTask);
+            System.out.println("FAIL: Duplicate task accepted.");
+        }
+        catch (IllegalArgumentException e) {
+            System.out.println("PASS: " + e.getMessage());
+        }
+
+        // Test invalid pickup position
+        Task invalidTask = new Task("T2", -1, 2, 3, 3);
+
+        try {
+            simulation.addTask(invalidTask);
+            System.out.println("FAIL: Invalid position accepted.");
+        }
+        catch (IllegalArgumentException e) {
+            System.out.println("PASS: " + e.getMessage());
+        }
+
     }
 }

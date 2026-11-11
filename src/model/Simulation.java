@@ -35,37 +35,100 @@ public class Simulation {
     }
 
 
-
-    //================ addRobot() ==================
+    
+    //================ addRobot() =====================
     // Description: Adds a robot to the simulation.
     // Input: A Robot object.
-    // Output: Adds the robot to the list.
-    //==============================================
+    // Output: Adds the robot if it is valid and unique.
+    //================================================
     public void addRobot(Robot robot) {
+
+        // Check for null robot.
         if (robot == null) {
-            throw new IllegalArgumentException(
-                "Robot cannot be null."
-            );
+            throw new IllegalArgumentException("Robot cannot be null.");
         }
 
+        // Check for duplicate robot IDs.
+        for (Robot existingRobot : robots) {
+            if (existingRobot.getId() == robot.getId()) {
+                throw new IllegalArgumentException("Robot ID " + robot.getId() + " already exists.");
+            }
+        }
+
+        // Add the robot.
         robots.add(robot);
     }
 
 
 
-    //================ addTask() ===================
-    // Description: Adds a new delivery task.
+    //================ addTask() ======================
+    // Description: Adds a valid task to the simulation.
     // Input: A Task object.
-    // Output: Adds the task to the list.
-    //==============================================
+    // Output: Adds the task if valid and unique.
+    //================================================
     public void addTask(Task task) {
+
+        // Check for null task.
         if (task == null) {
-            throw new IllegalArgumentException(
-                "Task cannot be null."
-            );
+            throw new IllegalArgumentException("Task cannot be null");
+        }
+
+        // Check for missing task ID.
+        if (task.getId() == null || task.getId().trim().isEmpty()) {
+            throw new IllegalArgumentException("Task ID cannot be empty.");
+        }
+
+        // Check for duplicate task IDs.
+        for (Task existingTask : tasks) {
+            if (existingTask.getId().equals(task.getId())) {
+                throw new IllegalArgumentException( "Task ID " + task.getId() + " already exists.");
+            }
+        }
+
+        // Create pickup and delivery positions.
+        Position pickup = getPickupPosition(task);
+        Position delivery = getDeliveryPosition(task);
+
+        char[][] grid = warehouse.getGrid();
+
+        // Check warehouse boundaries.
+        if (!isWithinBounds(pickup, grid) || !isWithinBounds(delivery, grid)) {
+            throw new IllegalArgumentException("Task location is outside the warehouse.");
+        }
+
+        // Check whether locations are usable.
+        if (!isValidTaskLocation(pickup) ||
+            !isValidTaskLocation(delivery)) {
+            throw new IllegalArgumentException("Task location is blocked.");
         }
 
         tasks.add(task);
+    }
+
+    //================ isWithinBounds() ================
+    // Description: Checks whether a position is on the map.
+    // Input: Position and warehouse grid.
+    // Output: True if position is inside boundaries.
+    //==================================================
+    private boolean isWithinBounds(Position pos, char[][] grid) {
+        return pos.getRow() >= 0 &&
+               pos.getRow() < grid.length &&
+               pos.getCol() >= 0 &&
+               pos.getCol() < grid[0].length;
+    }
+
+    //================ isValidTaskLocation() ============
+    // Description: Checks task pickup/delivery locations.
+    // Input: A Position object.
+    // Output: True if the location is usable.
+    //==================================================
+    private boolean isValidTaskLocation(Position pos) {
+
+        char cell = warehouse.getCell(
+            pos.getRow(), pos.getCol()
+        );
+
+        return (cell == '_' || cell == 'P' || cell == 'D');
     }
 
 
@@ -220,18 +283,13 @@ public class Simulation {
             if (task.getStatus() == Task.Status.ASSIGNED) {
                 task.setStatus(Task.Status.IN_PROGRESS);
 
-                System.out.println(
-                    "Robot " + robot.getId() +
-                    " picked up task " + task.getId()
-                );
+                System.out.println("Robot " + robot.getId() + " picked up task " + task.getId());
             }
             else if (task.getStatus() == Task.Status.IN_PROGRESS) {
                 task.setStatus(Task.Status.COMPLETED);
                 robot.completeTask();
 
-                System.out.println(
-                    "Task " + task.getId() + " completed."
-                );
+                System.out.println("Task " + task.getId() + " completed.");
             }
         }
     }
