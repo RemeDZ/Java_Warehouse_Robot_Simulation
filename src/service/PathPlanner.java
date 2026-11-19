@@ -1,4 +1,4 @@
-package model;
+package service;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import model.Position;
+import model.Warehouse;
 
 //PathPlanner: finds a route for a robot from one square to another.
 //It uses BFS (breadth-first search), which checks squares in rings

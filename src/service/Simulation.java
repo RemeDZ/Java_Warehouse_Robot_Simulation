@@ -1,10 +1,14 @@
 
-package model;
+package service;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import service.TaskManager;
+import model.Position;
+import model.Robot;
+import model.SimulationState;
+import model.Task;
+import model.Warehouse;
 
 public class Simulation {
 
@@ -113,6 +117,39 @@ public class Simulation {
     //==============================================
     public int getCurrentStep() {
         return currentStep;
+    }
+
+    public SimulationState getState() {
+        List<SimulationState.RobotState> robotStates = new ArrayList<>();
+        for (Robot robot : robots) {
+            Task currentTask = robot.getCurrentTask();
+            robotStates.add(new SimulationState.RobotState(
+                    robot.getId(), robot.getClass().getSimpleName(), robot.getPosition(),
+                    robot.getBattery(), getRobotStatus(robot),
+                    currentTask == null ? null : currentTask.getId()));
+        }
+
+        List<SimulationState.TaskState> taskStates = new ArrayList<>();
+        for (Task task : getTasks()) {
+            taskStates.add(new SimulationState.TaskState(
+                    task.getId(), getPickupPosition(task), getDeliveryPosition(task),
+                    task.getAssignedRobotId(), task.getStatus()));
+        }
+
+        return new SimulationState(currentStep, warehouse.getGrid(),
+                warehouse.getPickupPoints(), warehouse.getDropoffPoints(), warehouse.getChargers(),
+                robotStates, taskStates);
+    }
+
+    private SimulationState.RobotStatus getRobotStatus(Robot robot) {
+        if (robot.batteryLow()) return SimulationState.RobotStatus.LOW_BATTERY;
+        Task task = robot.getCurrentTask();
+        if (task == null || task.getStatus() == Task.Status.COMPLETED) {
+            return SimulationState.RobotStatus.IDLE;
+        }
+        if (task.getStatus() == Task.Status.ASSIGNED) return SimulationState.RobotStatus.ASSIGNED;
+        if (task.getStatus() == Task.Status.IN_PROGRESS) return SimulationState.RobotStatus.IN_PROGRESS;
+        return SimulationState.RobotStatus.WAITING;
     }
 
 
