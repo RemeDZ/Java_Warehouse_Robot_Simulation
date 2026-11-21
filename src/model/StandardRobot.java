@@ -14,6 +14,11 @@ public class StandardRobot extends Robot
         super(startPosition);
     }
 
+    public StandardRobot(int id, Position startPosition)
+    {
+        super(id, startPosition);
+    }
+
     //true if the item isn't too heavy for this robot
     @Override
     public boolean canCarry(int weight)

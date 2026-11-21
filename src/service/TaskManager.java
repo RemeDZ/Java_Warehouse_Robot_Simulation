@@ -47,6 +47,7 @@ public class TaskManager {
         return Collections.unmodifiableList(tasks);
     }
 
+    /** 按任务加入顺序分配给距取货点最近的可用机器人；等距时保持机器人列表顺序。 */
     public int assignPendingTasks(List<Robot> robots) {
         if (robots == null) {
             throw new IllegalArgumentException("Robot list and its entries cannot be null.");
@@ -62,14 +63,25 @@ public class TaskManager {
             if (task.getStatus() != Task.Status.PENDING || task.getAssignedRobotId() != null) {
                 continue;
             }
+            Robot nearestRobot = null;
+            long nearestDistance = Long.MAX_VALUE;
             for (Robot robot : robots) {
-                if (robot.getCurrentTask() == null && !robot.batteryLow()) {
-                    robot.setTask(task);
-                    task.setAssignedRobotId(String.valueOf(robot.getId()));
-                    task.setStatus(Task.Status.ASSIGNED);
-                    assignedCount++;
-                    break;
+                if (robot.getCurrentTask() != null || robot.batteryLow()) continue;
+                Position position = robot.getPosition();
+                if (position == null) continue;
+                // Task 的 X/Y 沿用项目约定，分别表示 row/col。
+                long distance = Math.abs((long) position.getRow() - task.getPickupX())
+                        + Math.abs((long) position.getCol() - task.getPickupY());
+                if (distance < nearestDistance) {
+                    nearestRobot = robot;
+                    nearestDistance = distance;
                 }
+            }
+            if (nearestRobot != null) {
+                nearestRobot.setTask(task);
+                task.setAssignedRobotId(String.valueOf(nearestRobot.getId()));
+                task.setStatus(Task.Status.ASSIGNED);
+                assignedCount++;
             }
         }
         return assignedCount;

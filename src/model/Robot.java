@@ -11,9 +11,18 @@ public abstract class Robot {
     private final int MAX_BATTERY = 100;
 
     protected Robot(Position startPosition) {
-        this.id = idCounter++;
+        this(idCounter, startPosition);
+    }
+
+    // 场景重建可指定稳定编号，同时保留其他调用方的自动编号方式。
+    protected Robot(int id, Position startPosition) {
+        if (id <= 0 || id == Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Robot ID must be positive and below Integer.MAX_VALUE.");
+        }
+        this.id = id;
         this.battery = MAX_BATTERY;
         this.position = startPosition;
+        idCounter = Math.max(idCounter, id + 1);
     }
 
     // abstract methods
