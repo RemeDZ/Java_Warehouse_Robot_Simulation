@@ -10,12 +10,15 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import model.SimulationState;
+import model.Task;
 
 public class SimulationFrame extends JFrame {
     private final WarehousePanel warehousePanel = new WarehousePanel();
     private final StatusPanel statusPanel = new StatusPanel();
     private final JButton nextStepButton = new JButton("Next Step");
     private final JLabel stepLabel = new JLabel("Step: -");
+    private final JLabel taskSummary = new JLabel("No tasks");
+    private final JLabel completionMessage = new JLabel();
     private Runnable nextStepAction;
     private boolean hasState;
 
@@ -34,6 +37,11 @@ public class SimulationFrame extends JFrame {
         center.add(warehousePanel, BorderLayout.CENTER);
         center.add(statusPanel, BorderLayout.EAST);
         content.add(center, BorderLayout.CENTER);
+        JPanel footer = new JPanel(new BorderLayout(5, 5));
+        footer.add(taskSummary, BorderLayout.CENTER);
+        footer.add(completionMessage, BorderLayout.EAST);
+        content.add(footer, BorderLayout.SOUTH);
+        statusPanel.onSelectionChanged(warehousePanel::setSelection);
 
         setLocationRelativeTo(null);
     }
@@ -61,6 +69,24 @@ public class SimulationFrame extends JFrame {
         hasState = state != null;
         stepLabel.setText(hasState ? "Step: " + state.getCurrentStep() : "Step: -");
         nextStepButton.setEnabled(hasState && nextStepAction != null);
+        int pending = 0;
+        int assigned = 0;
+        int delivering = 0;
+        int completed = 0;
+        if (state != null) {
+            for (SimulationState.TaskState task : state.getTasks()) {
+                if (task.getStatus() == Task.Status.PENDING) pending++;
+                else if (task.getStatus() == Task.Status.ASSIGNED) assigned++;
+                else if (task.getStatus() == Task.Status.IN_PROGRESS) delivering++;
+                else if (task.getStatus() == Task.Status.COMPLETED) completed++;
+            }
+        }
+        taskSummary.setText("Pending: " + pending + "   Assigned: " + assigned
+                + "   Delivering: " + delivering + "   Completed: " + completed);
+        boolean allCompleted = state != null && !state.getTasks().isEmpty()
+                && completed == state.getTasks().size();
+        completionMessage.setText(allCompleted ? "All tasks completed" : "");
+        completionMessage.setForeground(StatusColors.COMPLETED);
     }
 
     public void onNextStep(Runnable action) {

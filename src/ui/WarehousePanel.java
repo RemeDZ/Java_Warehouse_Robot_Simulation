@@ -1,6 +1,7 @@
 package ui;
 
 import java.awt.BorderLayout;
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -8,6 +9,7 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
+import java.awt.Stroke;
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -27,6 +29,8 @@ public class WarehousePanel extends JPanel {
 
     private final JPanel canvas;
     private SimulationState state;
+    private Integer selectedRobotId;
+    private String selectedTaskId;
 
     public WarehousePanel() {
         super(new BorderLayout(5, 5));
@@ -46,14 +50,22 @@ public class WarehousePanel extends JPanel {
         canvas.setPreferredSize(new Dimension(480, 480));
         add(canvas, BorderLayout.CENTER);
 
-        JPanel legend = new JPanel(new GridLayout(2, 1, 5, 5));
-        legend.add(new JLabel("Pn: Pickup   Dn: Delivery   n: Task ID   C: Charger   Gray: Wall"));
-        legend.add(new JLabel("Blue: Robot   Coordinates: (row, col), start at 0"));
+        JPanel legend = new JPanel(new GridLayout(4, 1, 5, 3));
+        legend.add(new JLabel("Pn: Pickup   Dn: Delivery   C: Charger   Gray cell: Wall"));
+        legend.add(new JLabel("Status: Gray pending/idle | Orange assigned | Blue delivering"));
+        legend.add(new JLabel("Green: Completed   Red: Low battery   Purple outline: Selected"));
+        legend.add(new JLabel("R: Robot   Coordinates: (row, col), start at 0"));
         add(legend, BorderLayout.SOUTH);
     }
 
     public void render(SimulationState state) {
         this.state = state;
+        canvas.repaint();
+    }
+
+    public void setSelection(Integer robotId, String taskId) {
+        selectedRobotId = robotId;
+        selectedTaskId = taskId;
         canvas.repaint();
     }
 
@@ -91,21 +103,34 @@ public class WarehousePanel extends JPanel {
             for (int row = 0; row < rows; row++) {
                 for (int col = 0; col < cols; col++) {
                     char tile = scene.getCell(row, col);
-                    String taskLabel = taskLabelAt(scene, row, col);
-                    if (!taskLabel.isEmpty() && (tile == '_' || tile == 'P' || tile == 'D')) {
-                        tile = taskLabel.charAt(0);
+                    SimulationState.TaskState task = taskAt(scene, row, col);
+                    boolean pickup = task != null && matches(task.getPickupPosition(), row, col);
+                    if (task != null && (tile == '_' || tile == 'P' || tile == 'D')) {
+                        tile = pickup ? 'P' : 'D';
                     }
+                    boolean visited = task != null && (task.getStatus() == Task.Status.COMPLETED
+                            || (pickup && task.getStatus() == Task.Status.IN_PROGRESS));
                     int x = left + col * cell;
                     int y = top + row * cell;
-                    g.setColor(tileColor(tile));
+                    Color background = tileColor(tile);
+                    g.setColor(visited ? StatusColors.background(background) : background);
                     g.fillRect(x, y, cell, cell);
                     g.setColor(Color.LIGHT_GRAY);
                     g.drawRect(x, y, cell, cell);
+                    if (task != null && task.getStatus() != Task.Status.COMPLETED) {
+                        outline(g, visited ? Color.LIGHT_GRAY : StatusColors.task(task.getStatus()),
+                                x + 3, y + 3, cell - 7, cell - 7, 2f);
+                    }
+                    if (task != null && task.getId().equals(selectedTaskId)) {
+                        outline(g, StatusColors.SELECTED, x + 1, y + 1, cell - 3, cell - 3, 2f);
+                    }
                     if (tile == 'P' || tile == 'D' || tile == 'C') {
-                        g.setColor(Color.BLACK);
-                        String label = tile == 'C' || taskLabel.isEmpty()
-                                ? String.valueOf(tile) : taskLabel;
-                        drawCentered(g, label, x, y, cell, cell);
+                        g.setColor(visited ? Color.GRAY : task == null ? Color.BLACK
+                                : StatusColors.task(task.getStatus()));
+                        String label = stationLabel(tile, task);
+                        if (hasRobotAt(scene, row, col)) {
+                            drawCentered(g, label, x + 3, y + 1, cell - 6, cell / 2 - 1);
+                        } else drawCentered(g, label, x + 3, y + 2, cell - 6, cell - 4);
                     }
                 }
             }
@@ -116,11 +141,30 @@ public class WarehousePanel extends JPanel {
                         || position.getCol() < 0 || position.getCol() >= cols) continue;
                 int x = left + position.getCol() * cell;
                 int y = top + position.getRow() * cell;
-                int inset = Math.max(2, cell / 10);
-                g.setColor(Color.BLUE);
-                g.fillOval(x + inset, y + inset, cell - inset * 2, cell - inset * 2);
+                char tile = scene.getCell(position.getRow(), position.getCol());
+                boolean atStation = tile == 'P' || tile == 'D' || tile == 'C'
+                        || taskAt(scene, position.getRow(), position.getCol()) != null;
+                int robotX = x + 4;
+                int robotY = atStation ? y + cell / 2 : y + 4;
+                int robotWidth = cell - 8;
+                int robotHeight = atStation ? cell - cell / 2 - 3 : cell - 8;
+                if (robotWidth <= 0 || robotHeight <= 0) continue;
+                g.setColor(StatusColors.robot(robot.getStatus()));
+                if (atStation) g.fillRect(robotX, robotY, robotWidth, robotHeight);
+                else g.fillOval(robotX, robotY, robotWidth, robotHeight);
+                if (selectedRobotId != null && robot.getId() == selectedRobotId) {
+                    if (atStation) {
+                        outline(g, StatusColors.SELECTED, robotX, robotY, robotWidth, robotHeight, 2f);
+                    } else {
+                        Stroke oldStroke = g.getStroke();
+                        g.setStroke(new BasicStroke(2f));
+                        g.setColor(StatusColors.SELECTED);
+                        g.drawOval(robotX, robotY, robotWidth, robotHeight);
+                        g.setStroke(oldStroke);
+                    }
+                }
                 g.setColor(Color.WHITE);
-                drawCentered(g, "R" + robot.getId(), x, y, cell, cell);
+                drawCentered(g, "R" + robot.getId(), robotX, robotY, robotWidth, robotHeight);
             }
 
         } finally {
@@ -128,15 +172,39 @@ public class WarehousePanel extends JPanel {
         }
     }
 
-    private String taskLabelAt(SimulationState scene, int row, int col) {
+    private SimulationState.TaskState taskAt(SimulationState scene, int row, int col) {
+        SimulationState.TaskState completed = null;
         for (SimulationState.TaskState task : scene.getTasks()) {
-            if (task.getStatus() == Task.Status.COMPLETED) continue;
-            String id = task.getId();
-            String number = id.startsWith("T") ? id.substring(1) : id;
-            if (matches(task.getPickupPosition(), row, col)) return "P" + number;
-            if (matches(task.getDeliveryPosition(), row, col)) return "D" + number;
+            if (!matches(task.getPickupPosition(), row, col)
+                    && !matches(task.getDeliveryPosition(), row, col)) continue;
+            if (task.getStatus() != Task.Status.COMPLETED) return task;
+            completed = task;
         }
-        return "";
+        return completed;
+    }
+
+    private String stationLabel(char tile, SimulationState.TaskState task) {
+        if (tile == 'C' || task == null || task.getStatus() == Task.Status.COMPLETED) {
+            return String.valueOf(tile);
+        }
+        String id = task.getId();
+        return tile + (id.startsWith("T") ? id.substring(1) : id);
+    }
+
+    private boolean hasRobotAt(SimulationState scene, int row, int col) {
+        for (SimulationState.RobotState robot : scene.getRobots()) {
+            if (matches(robot.getPosition(), row, col)) return true;
+        }
+        return false;
+    }
+
+    private void outline(Graphics2D g, Color color, int x, int y, int width, int height, float thickness) {
+        if (width <= 0 || height <= 0) return;
+        Stroke oldStroke = g.getStroke();
+        g.setStroke(new BasicStroke(thickness));
+        g.setColor(color);
+        g.drawRect(x, y, width, height);
+        g.setStroke(oldStroke);
     }
 
     private boolean matches(Position position, int row, int col) {
