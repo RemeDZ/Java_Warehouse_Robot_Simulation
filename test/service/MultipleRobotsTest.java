@@ -1,5 +1,11 @@
 
-package model;
+package service;
+
+import model.Position;
+import model.Robot;
+import model.StandardRobot;
+import model.Task;
+import model.Warehouse;
 
 public class MultipleRobotsTest {
 

@@ -1,16 +1,21 @@
 
-package model;
+package service;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import model.Position;
+import model.Robot;
+import model.SimulationState;
+import model.Task;
+import model.Warehouse;
 
 public class Simulation {
 
     // Warehouse and simulation data
     private final Warehouse warehouse;
     private final List<Robot> robots;
-    private final List<Task> tasks;
+    private final TaskManager taskManager;
     private final PathPlanner planner;
 
     private int currentStep;
@@ -29,7 +34,7 @@ public class Simulation {
 
         this.warehouse = warehouse;
         this.robots = new ArrayList<>();
-        this.tasks = new ArrayList<>();
+        this.taskManager = new TaskManager(warehouse);
         this.planner = new PathPlanner(warehouse);
         this.currentStep = 0;
     }
@@ -67,68 +72,7 @@ public class Simulation {
     // Output: Adds the task if valid and unique.
     //================================================
     public void addTask(Task task) {
-
-        // Check for null task.
-        if (task == null) {
-            throw new IllegalArgumentException("Task cannot be null");
-        }
-
-        // Check for missing task ID.
-        if (task.getId() == null || task.getId().trim().isEmpty()) {
-            throw new IllegalArgumentException("Task ID cannot be empty.");
-        }
-
-        // Check for duplicate task IDs.
-        for (Task existingTask : tasks) {
-            if (existingTask.getId().equals(task.getId())) {
-                throw new IllegalArgumentException( "Task ID " + task.getId() + " already exists.");
-            }
-        }
-
-        // Create pickup and delivery positions.
-        Position pickup = getPickupPosition(task);
-        Position delivery = getDeliveryPosition(task);
-
-        char[][] grid = warehouse.getGrid();
-
-        // Check warehouse boundaries.
-        if (!isWithinBounds(pickup, grid) || !isWithinBounds(delivery, grid)) {
-            throw new IllegalArgumentException("Task location is outside the warehouse.");
-        }
-
-        // Check whether locations are usable.
-        if (!isValidTaskLocation(pickup) ||
-            !isValidTaskLocation(delivery)) {
-            throw new IllegalArgumentException("Task location is blocked.");
-        }
-
-        tasks.add(task);
-    }
-
-    //================ isWithinBounds() ================
-    // Description: Checks whether a position is on the map.
-    // Input: Position and warehouse grid.
-    // Output: True if position is inside boundaries.
-    //==================================================
-    private boolean isWithinBounds(Position pos, char[][] grid) {
-        return pos.getRow() >= 0 &&
-               pos.getRow() < grid.length &&
-               pos.getCol() >= 0 &&
-               pos.getCol() < grid[0].length;
-    }
-
-    //================ isValidTaskLocation() ============
-    // Description: Checks task pickup/delivery locations.
-    // Input: A Position object.
-    // Output: True if the location is usable.
-    //==================================================
-    private boolean isValidTaskLocation(Position pos) {
-
-        char cell = warehouse.getCell(
-            pos.getRow(), pos.getCol()
-        );
-
-        return (cell == '_' || cell == 'P' || cell == 'D');
+        taskManager.addTask(task);
     }
 
 
@@ -161,7 +105,7 @@ public class Simulation {
     // Output: Read-only list of tasks.
     //==============================================
     public List<Task> getTasks() {
-        return Collections.unmodifiableList(tasks);
+        return taskManager.getTasks();
     }
 
 
@@ -173,6 +117,39 @@ public class Simulation {
     //==============================================
     public int getCurrentStep() {
         return currentStep;
+    }
+
+    public SimulationState getState() {
+        List<SimulationState.RobotState> robotStates = new ArrayList<>();
+        for (Robot robot : robots) {
+            Task currentTask = robot.getCurrentTask();
+            robotStates.add(new SimulationState.RobotState(
+                    robot.getId(), robot.getClass().getSimpleName(), robot.getPosition(),
+                    robot.getBattery(), getRobotStatus(robot),
+                    currentTask == null ? null : currentTask.getId()));
+        }
+
+        List<SimulationState.TaskState> taskStates = new ArrayList<>();
+        for (Task task : getTasks()) {
+            taskStates.add(new SimulationState.TaskState(
+                    task.getId(), getPickupPosition(task), getDeliveryPosition(task),
+                    task.getAssignedRobotId(), task.getStatus()));
+        }
+
+        return new SimulationState(currentStep, warehouse.getGrid(),
+                warehouse.getPickupPoints(), warehouse.getDropoffPoints(), warehouse.getChargers(),
+                robotStates, taskStates);
+    }
+
+    private SimulationState.RobotStatus getRobotStatus(Robot robot) {
+        if (robot.batteryLow()) return SimulationState.RobotStatus.LOW_BATTERY;
+        Task task = robot.getCurrentTask();
+        if (task == null || task.getStatus() == Task.Status.COMPLETED) {
+            return SimulationState.RobotStatus.IDLE;
+        }
+        if (task.getStatus() == Task.Status.ASSIGNED) return SimulationState.RobotStatus.ASSIGNED;
+        if (task.getStatus() == Task.Status.IN_PROGRESS) return SimulationState.RobotStatus.IN_PROGRESS;
+        return SimulationState.RobotStatus.WAITING;
     }
 
 
@@ -309,6 +286,9 @@ public class Simulation {
             "Simulation Step: " + currentStep
         );
 
+        // 在移动前分配一次；本步完成任务的机器人从下一步开始接新任务。
+        taskManager.assignPendingTasks(robots);
+
         // Process each robot once per step.
         for (Robot robot : robots) {
             processRobot(robot);
@@ -340,11 +320,11 @@ public class Simulation {
         }
 
         System.out.println("\nTasks:");
-        if (tasks.isEmpty()) {
+        if (getTasks().isEmpty()) {
             System.out.println("No tasks available.");
         }
         else {
-            for (Task task : tasks) {
+            for (Task task : getTasks()) {
                 System.out.println(task);
             }
         }
