@@ -1,0 +1,369 @@
+' Based on the current Java source. Selected members only; routine accessors omitted.
+' Render: java -jar plantuml.jar -charset UTF-8 -tsvg warehouse-robot-uml.puml
+' PNG:    java -jar plantuml.jar -charset UTF-8 -tpng warehouse-robot-uml.puml
+@startuml warehouse-robot-uml
+title Warehouse Robot Simulation — Current Class Diagram
+top to bottom direction
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 13
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam nodesep 35
+skinparam ranksep 60
+skinparam ArrowColor #555555
+skinparam classBackgroundColor White
+skinparam classBorderColor #555555
+hide empty members
+
+package app #F3F3F3 {
+  class Main {
+    + {static} main(args : String[]) : void
+  }
+  class Application {
+    - simulation : Simulation
+    - window : SimulationFrame
+    - nextTaskNumber : int
+    + init() : void
+    + run() : void
+    - advanceSimulation() : void
+    - addTask() : void
+    - resetSimulation() : void
+  }
+}
+
+package service #EAF2F8 {
+  class Simulation {
+    - warehouse : Warehouse
+    - robots : List<Robot>
+    - taskManager : TaskManager
+    - planner : PathPlanner
+    - currentStep : int
+    + Simulation(warehouse : Warehouse)
+    + addRobot(robot : Robot) : void
+    + addTask(task : Task) : void
+    + getRobots() : List<Robot>
+    + getTasks() : List<Task>
+    + getState() : SimulationState
+    + step() : void
+  }
+  class TaskManager {
+    - warehouse : Warehouse
+    - tasks : List<Task>
+    + TaskManager(warehouse : Warehouse)
+    + addTask(task : Task) : void
+    + getTasks() : List<Task>
+    + assignPendingTasks(robots : List<Robot>) : int
+  }
+  class PathPlanner {
+    - warehouse : Warehouse
+    + PathPlanner(warehouse : Warehouse)
+    + findPath(start : Position, goal : Position) : List<Position>
+    + stepsNeeded(start : Position, goal : Position) : int
+  }
+}
+
+package model #EFF6EB {
+  class Warehouse {
+    - grid : char[][]
+    - rows : int
+    - cols : int
+    - pickupPoints : List<Position>
+    - dropoffPoints : List<Position>
+    - chargers : List<Position>
+    + Warehouse(rows : int, cols : int)
+    + getCell(row : int, col : int) : char
+    + setCell(row : int, col : int, value : char) : void
+    + addPickup(pos : Position) : void
+    + addDropoff(pos : Position) : void
+    + addCharger(pos : Position) : void
+  }
+  abstract class Robot {
+    - id : int
+    - position : Position
+    - currentTask : Task
+    - battery : int
+    + {abstract} canCarry(weight : int) : boolean
+    # {abstract} getMoveCost() : int
+    + setTask(task : Task) : void
+    + completeTask() : void
+    + moveTo(newPosition : Position) : void
+    + batteryLow() : boolean
+    + recharge() : void
+  }
+  class StandardRobot {
+    + {static} MAX_LOAD : int = 20
+    + {static} STEP_COST : int = 1
+    + StandardRobot(startPosition : Position)
+    + StandardRobot(id : int, startPosition : Position)
+    + canCarry(weight : int) : boolean
+    # getMoveCost() : int
+  }
+  class HeavyRobot {
+    + {static} MAX_LOAD : int = 50
+    + {static} STEP_COST : int = 2
+    + HeavyRobot(startPosition : Position)
+    + canCarry(weight : int) : boolean
+    # getMoveCost() : int
+  }
+  class Task {
+    - id : String
+    - pickupX : int
+    - pickupY : int
+    - deliveryX : int
+    - deliveryY : int
+    - assignedRobotId : String
+    - status : Task.Status
+    + Task(id : String, pickupX : int, pickupY : int, deliveryX : int, deliveryY : int)
+  }
+  class Position <<immutable value>> {
+    - row : int {readOnly}
+    - col : int {readOnly}
+    + Position(row : int, col : int)
+    + offset(dRow : int, dCol : int) : Position
+    + equals(o : Object) : boolean
+    + hashCode() : int
+  }
+  class SimulationState <<read-only snapshot>> {
+    - currentStep : int
+    - grid : char[][]
+    - pickupPoints : List<Position>
+    - dropoffPoints : List<Position>
+    - chargers : List<Position>
+    - robots : List<RobotState>
+    - tasks : List<TaskState>
+    + getGrid() : char[][]
+    + getRobots() : List<RobotState>
+    + getTasks() : List<TaskState>
+  }
+}
+
+package ui #FFF5E7 {
+  class SimulationFrame <<extends JFrame>> {
+    - warehousePanel : WarehousePanel
+    - statusPanel : StatusPanel
+    - nextStepAction : Runnable
+    - addTaskAction : Runnable
+    - resetAction : Runnable
+    + SimulationFrame()
+    + render(state : SimulationState) : void
+    + onNextStep(action : Runnable) : void
+    + onAddTask(action : Runnable) : void
+    + onReset(action : Runnable) : void
+    + requestTaskInput(initialValues : TaskInput) : TaskInput
+    + showError(message : String) : void
+  }
+  class WarehousePanel <<extends JPanel>> {
+    - state : SimulationState
+    - selectedRobotId : Integer
+    - selectedTaskId : String
+    + render(state : SimulationState) : void
+    + setSelection(robotId : Integer, taskId : String) : void
+    - paintWarehouse(graphics : Graphics, width : int, height : int) : void
+  }
+  class StatusPanel <<extends JPanel>> {
+    - state : SimulationState
+    - robotTable : JTable
+    - taskTable : JTable
+    - selectionChanged : BiConsumer<Integer, String>
+    + render(state : SimulationState) : void
+    + onSelectionChanged(callback : BiConsumer<Integer, String>) : void
+  }
+  class StatusColors <<package-private utility>> {
+    ~ {static} task(status : Task.Status) : Color
+    ~ {static} robot(status : SimulationState.RobotStatus) : Color
+    ~ {static} background(color : Color) : Color
+  }
+}
+
+Main ..> Application : creates / starts
+Application "1" --> "0..1" Simulation : simulation
+Application "1" --> "0..1" SimulationFrame : window / callback registration
+Application ..> SimulationState : passes snapshot to render()
+
+Simulation "1" *--> "1" TaskManager : taskManager
+Simulation "1" *--> "1" PathPlanner : planner
+Simulation --> "1" Warehouse : warehouse
+Simulation --> "0..*" Robot : robots
+Simulation ..> SimulationState : creates in getState()
+TaskManager --> "1" Warehouse : validates cells
+TaskManager --> "0..*" Task : tasks
+TaskManager ..> Robot : assigns idle robot
+PathPlanner --> "1" Warehouse : plans on grid (BFS)
+PathPlanner ..> Position : path coordinates
+
+Robot <|-- StandardRobot
+Robot <|-- HeavyRobot
+Robot --> "0..1" Position : position
+Robot --> "0..1" Task : currentTask
+Warehouse --> "0..*" Position : station coordinates
+
+SimulationFrame "1" *--> "1" WarehousePanel
+SimulationFrame "1" *--> "1" StatusPanel
+SimulationFrame ..> SimulationState : renders
+WarehousePanel --> "0..1" SimulationState : state
+StatusPanel --> "0..1" SimulationState : state
+WarehousePanel ..> StatusColors : colors
+StatusPanel ..> StatusColors : colors
+StatusPanel ..> WarehousePanel : selection callback\n(wired by SimulationFrame)
+
+' Keep peers near one another without adding domain relationships.
+Simulation -[hidden]right-> SimulationFrame
+TaskManager -[hidden]right-> PathPlanner
+StandardRobot -[hidden]right-> HeavyRobot
+
+note bottom of TaskManager
+  Insertion order; nearest eligible robot to pickup.
+  Manhattan distance; ties follow robot list order.
+  Skip busy / low-battery / positionless robots.
+end note
+note bottom of Task
+  X = row; Y = col; zero-based.
+  assignedRobotId stores String.valueOf(robot.getId()).
+  The ID is not a direct Robot reference.
+end note
+note bottom of SimulationFrame
+  Buttons call registered Runnable callbacks.
+  No direct reference to Application or Simulation.
+  Application updates Simulation and renders a new snapshot.
+end note
+
+legend bottom left
+  Selected members only; routine accessors and JDK class boxes omitted.
+  Solid arrow: reference; dashed arrow: use/create/callback dependency.
+  Filled diamond: owned component; hollow triangle: inheritance.
+  Nested snapshot/input types and enums: see the data detail diagram.
+  Empty placeholders excluded: Movement, MovementManager,
+  ConsoleInput, ConsoleOutput, FileManager. Tests are not shown.
+endlegend
+@enduml
+
+@startuml warehouse-robot-data-uml
+title Warehouse Robot Simulation — Snapshot, Input and Enum Details
+left to right direction
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 13
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam nodesep 40
+skinparam ranksep 65
+skinparam ArrowColor #555555
+skinparam classBackgroundColor White
+skinparam classBorderColor #555555
+hide empty members
+
+package model #EFF6EB {
+  class SimulationState <<final / read-only snapshot>> {
+    - currentStep : int {readOnly}
+    - grid : char[][] {readOnly}
+    - pickupPoints : List<Position> {readOnly}
+    - dropoffPoints : List<Position> {readOnly}
+    - chargers : List<Position> {readOnly}
+    - robots : List<RobotState> {readOnly}
+    - tasks : List<TaskState> {readOnly}
+    + getCurrentStep() : int
+    + getRows() : int
+    + getCols() : int
+    + getCell(row : int, col : int) : char
+    + getGrid() : char[][]
+    + getPickupPoints() : List<Position>
+    + getDropoffPoints() : List<Position>
+    + getChargers() : List<Position>
+    + getRobots() : List<RobotState>
+    + getTasks() : List<TaskState>
+  }
+  class "SimulationState.RobotState" as RobotState <<static / final>> {
+    - id : int {readOnly}
+    - type : String {readOnly}
+    - position : Position {readOnly}
+    - battery : int {readOnly}
+    - status : SimulationState.RobotStatus {readOnly}
+    - currentTaskId : String {readOnly}
+  }
+  class "SimulationState.TaskState" as TaskState <<static / final>> {
+    - id : String {readOnly}
+    - pickupPosition : Position {readOnly}
+    - deliveryPosition : Position {readOnly}
+    - assignedRobotId : String {readOnly}
+    - status : Task.Status {readOnly}
+  }
+  enum "SimulationState.RobotStatus" as RobotStatus {
+    IDLE
+    WAITING
+    ASSIGNED
+    IN_PROGRESS
+    LOW_BATTERY
+  }
+  enum "Task.Status" as TaskStatus {
+    PENDING
+    ASSIGNED
+    IN_PROGRESS
+    COMPLETED
+  }
+  class Task {
+    - status : Task.Status
+    + getStatus() : Task.Status
+    + setStatus(status : Task.Status) : void
+  }
+  class Position <<immutable value>> {
+    - row : int {readOnly}
+    - col : int {readOnly}
+    + Position(row : int, col : int)
+    + getRow() : int
+    + getCol() : int
+  }
+}
+
+package ui #FFF5E7 {
+  class SimulationFrame {
+    + requestTaskInput(initialValues : TaskInput) : TaskInput
+  }
+  class "SimulationFrame.TaskInput" as TaskInput <<static / final>> {
+    - pickupRow : int {readOnly}
+    - pickupCol : int {readOnly}
+    - deliveryRow : int {readOnly}
+    - deliveryCol : int {readOnly}
+    + TaskInput(pickupRow : int, pickupCol : int, deliveryRow : int, deliveryCol : int)
+    + getPickupRow() : int
+    + getPickupCol() : int
+    + getDeliveryRow() : int
+    + getDeliveryCol() : int
+  }
+}
+
+SimulationState --> "0..*" RobotState : robots {readOnly}
+SimulationState --> "0..*" TaskState : tasks {readOnly}
+SimulationState --> "0..*" Position : copied station coordinates
+RobotState --> "0..1" Position : copied position
+TaskState --> "0..1" Position : copied pickupPosition
+TaskState --> "0..1" Position : copied deliveryPosition
+RobotState --> "0..1" RobotStatus : status
+TaskState --> "0..1" TaskStatus : status
+Task --> "0..1" TaskStatus : status
+SimulationFrame ..> TaskInput : creates / returns
+
+note bottom of SimulationState
+  Grid is copied on construction and getGrid().
+  Station positions are copied; returned lists are unmodifiable.
+  RobotState / TaskState copy positions and expose getters only.
+  Snapshot IDs are values, not references to mutable Robot / Task.
+end note
+note bottom of RobotStatus
+  Derived by Simulation.getRobotStatus().
+  Robot has no persistent RobotStatus field.
+end note
+note bottom of TaskInput
+  Input carries coordinates only.
+  Application generates IDs and checks endpoint conflicts.
+  TaskManager performs task ID / grid validation.
+end note
+legend bottom left
+  Dotted names are actual nested Java types, not new top-level classes.
+  {readOnly} marks final fields / read-only properties.
+  Public constructors of snapshots are omitted for space.
+  Null is allowed by snapshot constructors for positions / status.
+  Current UI policy: endpoints of unfinished tasks cannot overlap.
+  That policy is not a global constraint in TaskManager.
+endlegend
+@enduml

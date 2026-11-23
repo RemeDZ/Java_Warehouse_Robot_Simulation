@@ -1,0 +1,44 @@
+@startuml warehouse-robot-architecture
+title Warehouse Robot Simulation — Architecture
+top to bottom direction
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 15
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam packageStyle rectangle
+skinparam nodesep 35
+skinparam ranksep 35
+skinparam ArrowColor #555555
+skinparam rectangleBorderColor #666666
+skinparam rectangleBackgroundColor White
+skinparam packageBorderColor #777777
+
+package "UI" as UI_LAYER #FFF5E7 {
+  rectangle "<b>Swing UI</b>\nSimulationFrame\nWarehousePanel / StatusPanel" as UI
+}
+package "Application" as APP_LAYER #F2F2F2 {
+  rectangle "<b>Main / Application</b>\nScene setup and UI callbacks" as APP
+}
+package "Service" as SERVICE_LAYER #EAF2F8 {
+  rectangle "<b>Simulation</b>\nSimulation steps and task progress" as SIM
+  rectangle "<b>TaskManager</b>\nTask validation and assignment" as MANAGER
+  rectangle "<b>PathPlanner</b>\nBFS pathfinding" as PLANNER
+  MANAGER -[hidden]right-> PLANNER
+}
+package "Model" as MODEL_LAYER #EFF6EB {
+  rectangle "<b>Domain Objects</b>\nWarehouse / Robot / Task / Position" as DOMAIN
+  rectangle "<b>SimulationState</b>\nRead-only snapshot" as STATE
+  DOMAIN -[hidden]right-> STATE
+}
+
+UI -[#B56A13]down-> APP : Actions
+APP -[#28804A,norank]up-> UI : Render
+APP -down-> SIM : Commands / getState()
+SIM -down-> MANAGER
+SIM -down-> PLANNER
+SIM -down-> DOMAIN : Update
+MANAGER -down-> DOMAIN
+PLANNER -down-> DOMAIN
+SIM -[#28804A]down-> STATE : Create
+STATE -[#28804A,norank]up-> APP : Snapshot
+@enduml

@@ -16,8 +16,12 @@ public class Application {
 
     public void init() {
         Warehouse warehouse = new Warehouse(16, 16);
-        for (int col = 4; col <= 10; col++) warehouse.setCell(5, col, '#');
-        for (int col = 3; col <= 8; col++) warehouse.setCell(10, col, '#');
+
+        for (int col = 4; col <= 10; col++)
+            warehouse.setCell(5, col, '#');
+        for (int col = 3; col <= 8; col++)
+            warehouse.setCell(10, col, '#');
+
         warehouse.addCharger(new Position(1, 14));
         warehouse.addPickup(new Position(2, 3));
         warehouse.addDropoff(new Position(13, 13));
@@ -66,7 +70,6 @@ public class Application {
         }
     }
 
-    // GUI 提交入口的独占位置约定，不改变其他调用方添加任务的规则。
     private void validateTaskPositions(SimulationFrame.TaskInput input, SimulationState state) {
         Position pickup = new Position(input.getPickupRow(), input.getPickupCol());
         Position delivery = new Position(input.getDeliveryRow(), input.getDeliveryCol());
