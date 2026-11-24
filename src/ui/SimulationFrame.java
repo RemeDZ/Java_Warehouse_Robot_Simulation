@@ -30,7 +30,7 @@ public class SimulationFrame extends JFrame {
     private int sceneRows;
     private int sceneCols;
 
-    /** 输入数据只包含行列坐标，任务编号由 Application 生成。 */
+
     public static final class TaskInput {
         private final int pickupRow;
         private final int pickupCol;
@@ -144,7 +144,6 @@ public class SimulationFrame extends JFrame {
         resetButton.setEnabled(hasState && resetAction != null);
     }
 
-    /** 取消返回 null；格式错误时保留原文本，业务校验由 Application 处理。 */
     public TaskInput requestTaskInput(TaskInput initialValues) {
         if (!hasState || sceneRows == 0 || sceneCols == 0) return null;
         TaskInput values = initialValues == null ? new TaskInput(0, 0, 0, 1) : initialValues;

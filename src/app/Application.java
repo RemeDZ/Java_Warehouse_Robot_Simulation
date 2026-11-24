@@ -40,7 +40,8 @@ public class Application {
 
     public void run() {
         SwingUtilities.invokeLater(() -> {
-            if (simulation == null) init();
+            if (simulation == null)
+                init();
             window = new SimulationFrame();
             window.onNextStep(this::advanceSimulation);
             window.onAddTask(this::addTask);
